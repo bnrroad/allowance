@@ -53,6 +53,7 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}.table-wrap{overflow:
  <div class="grid">
   <div class="card"><h2 class="section-title">Sunday Working Allowance</h2>
    <form id="sundayForm"><div class="fields">
+    <div class="field"><label>Entry Date</label><input id="sunEntryDate" type="date"></div>
     <div class="field"><label>Employee Number</label><input id="sunEmp" required list="empOptions" placeholder="e.g. MY0016" autocomplete="off"></div>
     <div class="field"><label>Employee Name</label><input id="sunName" readonly tabindex="-1"></div>
     <div class="field"><label>Designation</label><input id="sunDesignation" readonly tabindex="-1"></div>
@@ -75,6 +76,7 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}.table-wrap{overflow:
  <div class="grid">
   <div class="card"><h2 class="section-title">Overtime Duty Allowance</h2>
    <form id="otForm"><div class="fields">
+    <div class="field"><label>Entry Date</label><input id="otEntryDate" type="date"></div>
     <div class="field"><label>Employee Number</label><input id="otEmp" required list="empOptions" placeholder="e.g. MY0016" autocomplete="off"></div>
     <div class="field"><label>Employee Name</label><input id="otName" readonly tabindex="-1"></div>
     <div class="field"><label>Department / Designation</label><input id="otDesignation" readonly tabindex="-1"></div>
@@ -150,7 +152,7 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}.table-wrap{overflow:
  <div class="grid"><div class="card"><h2 class="section-title">Print Allowance Lists</h2>
   <p class="muted">A4 print format. Both OT and COMPOFF/Sunday pages are limited to ₹9,999 total. Entries for the same work date appear together where possible, including multiple entries for one employee.</p>
   <div class="fields"><div class="field"><label>Allowance list</label><select id="printType"><option value="Sunday">Sunday Working / COMPOFF List</option><option value="Overtime">Overtime Duty Allowance</option></select></div><div class="field"><label>Entry date from</label><input id="printFrom" type="date"></div><div class="field"><label>Entry date to</label><input id="printTo" type="date"></div><div class="field" style="align-self:end"><button id="makePrintList">Prepare A4 list</button></div></div>
-  <div class="notice" style="margin-top:12px">Print is filtered by the date you entered/saved the records, then grouped by actual work date. Different work dates appear in separate groups. Both OT and COMPOFF/Sunday groups exceeding ₹9,999 continue on additional A4 pages. OT Duty, MOS and P&amp;D amounts are reflected.</div>
+  <div class="notice" style="margin-top:12px">Print is filtered by Entry Date. Sunday / COMPOFF: latest Sunday-only workers appear on Page A; anyone with earlier Sunday work appears together on Page B with all dates and total amount in one row. OT keeps all dates together. Each page is limited to ₹9,999.</div>
   <div id="printPreviewSummary" class="muted" style="margin-top:12px"></div><div class="row no-print" style="margin-top:12px"><button id="downloadPreparedList" class="secondary fixed">Download A4 List (HTML)</button><button id="printPreparedList" class="fixed">Print A4 List</button></div>
  </div></div>
 </section>
@@ -274,8 +276,8 @@ document.getElementById('otMosRate').addEventListener('keydown',e=>{if(e.key==='
 document.getElementById('sundayForm').addEventListener('submit',e=>{e.preventDefault();saveEntry('Sunday')});
 document.getElementById('otForm').addEventListener('submit',e=>{e.preventDefault();saveEntry('Overtime')});
 
-function resetSun(){editEntryId=null;document.getElementById('saveSunBtn').textContent='Save Sunday Entry';document.getElementById('sundayForm').reset();activeDates.sun=[];activeDayFractions.sun={};activeSunAmounts={};document.getElementById('sunMonth').value=monthNow();document.getElementById('sunDateMessage').textContent='Enter day numbers for the selected month, for example 10,12,13.';dateListHTML('sun');document.getElementById('sunSalary').value='';document.getElementById('sunDays').value=0;document.getElementById('sunRate').value=0;document.getElementById('sunAmount').value=0}
-function resetOt(){editEntryId=null;document.getElementById('saveOtBtn').textContent='Save Overtime Entry';document.getElementById('otForm').reset();activeDates.ot=[];activeMosAmounts={};document.getElementById('otMonth').value=monthNow();document.getElementById('otDateMessage').textContent='Enter day numbers for the selected month, for example 10,12,13.';document.getElementById('otMosRate').value=0;document.getElementById('otMosRateWrap').hidden=true;dateListHTML('ot');document.getElementById('otDays').value=0;document.getElementById('otRate').value=currentOtRate;document.getElementById('otAmount').value=0}
+function resetSun(){const keepEntryDate=document.getElementById('sunEntryDate').value||today();editEntryId=null;document.getElementById('saveSunBtn').textContent='Save Sunday Entry';document.getElementById('sundayForm').reset();document.getElementById('sunEntryDate').value=keepEntryDate;activeDates.sun=[];activeDayFractions.sun={};activeSunAmounts={};document.getElementById('sunMonth').value=monthNow();document.getElementById('sunDateMessage').textContent='Enter day numbers for the selected month, for example 10,12,13.';dateListHTML('sun');document.getElementById('sunSalary').value='';document.getElementById('sunDays').value=0;document.getElementById('sunRate').value=0;document.getElementById('sunAmount').value=0}
+function resetOt(){const keepEntryDate=document.getElementById('otEntryDate').value||today();editEntryId=null;document.getElementById('saveOtBtn').textContent='Save Overtime Entry';document.getElementById('otForm').reset();document.getElementById('otEntryDate').value=keepEntryDate;activeDates.ot=[];activeMosAmounts={};document.getElementById('otMonth').value=monthNow();document.getElementById('otDateMessage').textContent='Enter day numbers for the selected month, for example 10,12,13.';document.getElementById('otMosRate').value=0;document.getElementById('otMosRateWrap').hidden=true;dateListHTML('ot');document.getElementById('otDays').value=0;document.getElementById('otRate').value=currentOtRate;document.getElementById('otAmount').value=0}
 document.getElementById('clearSun').onclick=resetSun;document.getElementById('clearOt').onclick=resetOt;
 function saveEntry(type){const pre=type==='Sunday'?'sun':'ot',emp=findEmp(document.getElementById(pre+'Emp').value);if(!emp){alert('Please enter a valid Employee Number from Employee Master.');document.getElementById(pre+'Emp').focus();return false}const parsed=parseEntryDates(pre),dates=parsed.dates;if(parsed.future.length){alert('Future work date(s) are not allowed: '+parsed.future.join(', ')+'. You can enter only dates up to today ('+displayDate(today())+'). Past-month dates are allowed.');document.getElementById(pre+'DateText').focus();return false}if(parsed.bad.length){alert('Please correct these date(s): '+parsed.bad.join(', ')+'. Enter day numbers for the selected month or full dates as DD-MM-YYYY.');document.getElementById(pre+'DateText').focus();return false}if(!dates.length){alert('Please enter at least one worked date.');document.getElementById(pre+'DateText').focus();return false}activeDates[pre]=dates;let rate,mos=0,pd=0,amount=0,days=dates.length,dateAmounts={},dateDays={};if(type==='Sunday'){rate=rateSunday(emp.salary);dates.forEach(d=>{const fraction=Number(activeDayFractions.sun[d]??1);dateDays[d]=fraction;dateAmounts[d]=Number(activeSunAmounts[d]??Math.round((rate*fraction)/10)*10);amount+=dateAmounts[d]});days=dates.reduce((sum,d)=>sum+Number(dateDays[d]??1),0)}else{const mode=document.getElementById('otMode').value;rate=mode==='P&D'?150:mode==='MOS'?Math.max(0,Number(document.getElementById('otMosRate').value||0)):Math.max(0,Number(document.getElementById('otRate').value||currentOtRate));if(mode==='MOS'&&dates.some(d=>!(Number(activeMosAmounts[d] ?? rate)>0))){alert('Enter a MOS amount greater than zero for every date.');return false}if(mode==='MOS')mos=Number(dates.reduce((sum,d)=>sum+Number(activeMosAmounts[d] ?? rate),0).toFixed(2));else if(mode==='P&D')pd=Number((rate*dates.length).toFixed(2));dates.forEach(d=>{dateDays[d]=1;dateAmounts[d]=Number((mode==='MOS'?Number(activeMosAmounts[d] ?? rate):rate).toFixed(2));amount+=dateAmounts[d]});days=dates.length}amount=Number(amount.toFixed(2));
 const entryMode=type==='Overtime'?document.getElementById('otMode').value:undefined;
@@ -298,13 +300,14 @@ if(duplicateMatches.length){
 }
 const userNotes=document.getElementById(pre+'Notes').value.trim();
 const savedNotes=[userNotes,duplicateReason?`Duplicate reason: ${duplicateReason}`:''].filter(Boolean).join(' | ');
-const oldEntry=editEntryId?db.entries.find(x=>x.id===editEntryId):null;const entry={...(oldEntry||{}),id:oldEntry?oldEntry.id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()),type,mode:entryMode,empNo:emp.empNo,name:emp.name,designation:emp.designation,salary:type==='Sunday'?Number(emp.salary||0):null,dates,days,rate,mos,pd,amount,dateAmounts,dateDays,paid:document.getElementById(pre+'Paid').value,notes:savedNotes,duplicateReason:oldEntry?.duplicateReason||duplicateReason,duplicateDates:oldEntry?.duplicateDates||duplicateMatches.flatMap(x=>x.duplicateDates),entryDate:oldEntry?.entryDate||today(),createdAt:oldEntry?.createdAt||new Date().toISOString(),updatedAt:oldEntry?new Date().toISOString():undefined};if(oldEntry){const ix=db.entries.findIndex(x=>x.id===editEntryId);db.entries[ix]=entry}else db.entries.push(entry);save();if(type==='Sunday')resetSun();else resetOt();document.getElementById(pre+'DateMessage').textContent=oldEntry?'Entry updated successfully.':'Entry saved successfully.';document.getElementById(pre+'Emp').focus();return true}
+const oldEntry=editEntryId?db.entries.find(x=>x.id===editEntryId):null;const entry={...(oldEntry||{}),id:oldEntry?oldEntry.id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()),type,mode:entryMode,empNo:emp.empNo,name:emp.name,designation:emp.designation,salary:type==='Sunday'?Number(emp.salary||0):null,dates,days,rate,mos,pd,amount,dateAmounts,dateDays,paid:document.getElementById(pre+'Paid').value,notes:savedNotes,duplicateReason:oldEntry?.duplicateReason||duplicateReason,duplicateDates:oldEntry?.duplicateDates||duplicateMatches.flatMap(x=>x.duplicateDates),entryDate:document.getElementById(pre+'EntryDate').value||today(),createdAt:oldEntry?.createdAt||new Date().toISOString(),updatedAt:oldEntry?new Date().toISOString():undefined};if(oldEntry){const ix=db.entries.findIndex(x=>x.id===editEntryId);db.entries[ix]=entry}else db.entries.push(entry);save();if(type==='Sunday')resetSun();else resetOt();document.getElementById(pre+'DateMessage').textContent=oldEntry?'Entry updated successfully.':'Entry saved successfully.';return true}
 function fmtDates(ds){return (ds||[]).join(', ')}
 function renderEntryTable(target,entries,allowPaid=true){if(!entries.length){document.getElementById(target).innerHTML='<div class="empty">No entries found</div>';return}document.getElementById(target).innerHTML='<table><thead><tr><th>Date(s)</th><th>Employee No.</th><th>Name</th><th>Designation</th><th>Days</th><th>Mode / Rate</th><th>MOS</th><th>P&amp;D</th><th>Amount</th><th>Status</th><th>Remarks</th><th class="no-print">Action</th></tr></thead><tbody>'+entries.slice().sort((a,b)=>(b.dates[0]||'').localeCompare(a.dates[0]||'')).map(e=>`<tr><td>${esc(fmtDates(e.dates))}</td><td>${esc(e.empNo)}</td><td>${esc(e.name)}</td><td>${esc(e.designation)}</td><td>${Number(e.days??e.dates.length)}</td><td>${e.mode?esc(e.mode)+' · ':''}${money(e.rate)}</td><td>${e.type==='Overtime'?money(e.mode==='MOS'?e.rate:(e.mos||0)):'—'}</td><td>${e.type==='Overtime'?money(e.mode==='P&D'?e.rate:(e.pd||0)):'—'}</td><td><b>${money(e.amount)}</b></td><td><span class="pill ${e.paid==='Paid'?'':'inactive'}">${esc(e.paid)}</span></td><td>${esc(e.duplicateReason||e.notes||'—')}</td><td class="no-print">${allowPaid?`<button class="secondary small" data-paid="${esc(e.id)}">${e.paid==='Paid'?'Mark Pending':'Mark Paid'}</button> `:''}<button class="secondary small" data-edit-entry="${esc(e.id)}">Edit</button> <button class="danger small" data-del="${esc(e.id)}">Delete</button></td></tr>`).join('')+'</tbody></table>';document.getElementById(target).querySelectorAll('[data-paid]').forEach(b=>b.onclick=()=>{const e=db.entries.find(x=>x.id===b.dataset.paid);if(e){e.paid=e.paid==='Paid'?'Pending':'Paid';save()}});document.getElementById(target).querySelectorAll('[data-edit-entry]').forEach(b=>b.onclick=()=>editAllowanceEntry(b.dataset.editEntry));document.getElementById(target).querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this entry permanently?')){db.entries=db.entries.filter(x=>x.id!==b.dataset.del);save()}})}
 function editAllowanceEntry(id){
  const e=db.entries.find(x=>x.id===id);if(!e||e.legacy)return;
  editEntryId=id;const pre=e.type==='Sunday'?'sun':'ot';
  const dates=(e.dates||[]).slice().sort();if(!dates.length)return;
+ document.getElementById(pre+'EntryDate').value=String(e.entryDate||e.createdAt||today()).slice(0,10);
  const firstMonth=dates[0].slice(0,7);document.getElementById(pre+'Emp').value=e.empNo;fillEmployee(pre);
  document.getElementById(pre+'Month').value=firstMonth;
  const sameMonth=dates.every(d=>d.slice(0,7)===firstMonth);
@@ -476,10 +479,10 @@ function buildPrintPage(type,rows,title,dateLabel,pageNo,totalPages){
  const isSun=type==='Sunday';
  const headers=isSun?['SL NO','EMP NO','NAME','DESIGNATION','NO. OF DAYS','DATES','AMOUNT','SIGNATURE']:['SL NO','EMP NO','NAME','DEPARTMENT','NO. OF DAYS','DATES','MOS','P&D','AMOUNT','SIGNATURE'];
  const sum=rows.reduce((a,r)=>a+Number(r.amount||0),0);
- let html=`<div class="print-page"><h1 class="print-company">MANDOVI MOTORS PRIVATE LIMITED</h1><div class="print-address">Bannur Road, Mysore</div><div class="print-heading">${title}</div><div class="print-subheading">${dateLabel?`Work date: ${esc(dateLabel)} &nbsp; | &nbsp;`:''}Page ${pageNo} of ${totalPages}</div><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+ let html=`<div class="print-page"><h1 class="print-company">MANDOVI MOTORS PRIVATE LIMITED</h1><div class="print-address">Bannur Road, Mysore</div><div class="print-heading">${title}</div><div class="print-subheading">${dateLabel?`${esc(dateLabel)} &nbsp; | &nbsp;`:''}Page ${pageNo} of ${totalPages}</div><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
  rows.forEach((r,i)=>{
   let cells;
-  if(isSun)cells=[i+1,r.empNo,r.name,r.designation,Number(r.days??1),displayDate(r.date),money(r.amount),''];
+  if(isSun){cells=[i+1,r.empNo,r.name,r.designation,Number(r.days??1),fmtDates((r.dates||[]).map(displayDate)),money(r.amount),''];}
   else cells=[i+1,r.empNo,r.name,r.designation,r.days,fmtDates(r.dates.map(displayDate)),money(r.mode==='MOS'?r.amount:(r.mos||0)),money(r.mode==='P&D'?r.amount:(r.pd||0)),money(r.amount),''];
   html+='<tr>'+cells.map(v=>`<td>${esc(v)}</td>`).join('')+'</tr>';
  });
@@ -511,27 +514,36 @@ function preparePrintList(){
   }).sort((a,b)=>String(a.dates[0]||'').localeCompare(String(b.dates[0]||''))||String(a.name||'').localeCompare(String(b.name||''))||String(a.empNo||'').localeCompare(String(b.empNo||'')));
   splitRowsByLimit(rows).forEach(pageRows=>allPages.push({type,rows:pageRows,title:'OVERTIME DUTY ALLOWANCE',dateLabel:''}));
  }else{
-  const byDate={};
+  // Aggregate every selected Sunday date for each employee into one row.
+  const byEmployee={};
   selected.forEach(e=>{
-   const allDates=(e.dates||[]).slice().sort(),chargeDate=allDates[0];
-   (e.dates||[]).forEach(date=>{
+   const dates=(e.dates||[]).slice().sort(),chargeDate=dates[0];
+   dates.forEach(date=>{
     const hasPerDate=!!e.dateAmounts&&!!(e.mode||e.dateDays);
     const base=Number(e.dateAmounts?.[date] ?? (Number(e.rate||0)*Number(e.dateDays?.[date]??1)));
     const oldCharges=!hasPerDate&&date===chargeDate?Number(e.mos||0)+Number(e.pd||0):0;
     const amount=Number((base+oldCharges).toFixed(2));
-    const row={...e,dates:[date],days:Number(e.dateDays?.[date]??1),amount,date,mos:e.mode==='MOS'?amount:(hasPerDate?Number(e.mos||0):(date===chargeDate?Number(e.mos||0):0)),pd:e.mode==='P&D'?amount:(hasPerDate?Number(e.pd||0):(date===chargeDate?Number(e.pd||0):0))};
-    (byDate[date] ||= []).push(row);
+    const key=String(e.empNo||e.name||'').trim().toUpperCase();
+    const row=(byEmployee[key] ||= {...e,dates:[],days:0,amount:0,dateAmountsByDay:{}});
+    if(!row.dates.includes(date))row.dates.push(date);
+    row.days+=Number(e.dateDays?.[date]??1);
+    row.amount+=amount;
+    row.dateAmountsByDay[date]=(row.dateAmountsByDay[date]||0)+amount;
    });
   });
-  Object.keys(byDate).sort().forEach(date=>{
-   const rows=byDate[date].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))||String(a.empNo||'').localeCompare(String(b.empNo||'')));
-   splitRowsByLimit(rows).forEach(pageRows=>allPages.push({type,rows:pageRows,title:'SUNDAY WORKING LIST',dateLabel:displayDate(date)}));
-  });
+  const grouped=Object.values(byEmployee).map(r=>({...r,dates:r.dates.sort(),amount:Number(r.amount.toFixed(2))}));
+  const latestSunday=grouped.flatMap(r=>r.dates).sort().slice(-1)[0];
+  const pageA=grouped.filter(r=>r.dates.length===1&&r.dates[0]===latestSunday)
+    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))||String(a.empNo||'').localeCompare(String(b.empNo||'')));
+  const pageB=grouped.filter(r=>r.dates.some(d=>d<latestSunday))
+    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))||String(a.empNo||'').localeCompare(String(b.empNo||'')));
+  if(pageA.length)splitRowsByLimit(pageA).forEach(pageRows=>allPages.push({type,rows:pageRows,title:'SUNDAY WORKING / COMPOFF LIST — PAGE A',dateLabel:'Latest Sunday: '+displayDate(latestSunday)}));
+  if(pageB.length)splitRowsByLimit(pageB).forEach(pageRows=>allPages.push({type,rows:pageRows,title:'SUNDAY WORKING / COMPOFF LIST — PAGE B',dateLabel:'Previous Sunday work — all dates combined'}));
  }
  if(!allPages.length){alert('ಈ filter ಗೆ entries ಸಿಗಲಿಲ್ಲ.');return}
  allPages.forEach((p,i)=>html+=buildPrintPage(p.type,p.rows,p.title,p.dateLabel,i+1,allPages.length));
  document.getElementById('printArea').innerHTML=html;
- document.getElementById('printPreviewSummary').textContent=`${allPages.length} A4 page(s) prepared. Total amount: ${money(allPages.reduce((s,p)=>s+p.rows.reduce((t,r)=>t+Number(r.amount||0),0),0))}. Filtered by entry date. ${type==='Overtime'?'OT rows keep all dates together; each page is capped at ₹9,999.':'COMPOFF/Sunday entries are grouped by work date and each page is capped at ₹9,999.'}`;
+ document.getElementById('printPreviewSummary').textContent=`${allPages.length} A4 page(s) prepared. Total amount: ${money(allPages.reduce((s,p)=>s+p.rows.reduce((t,r)=>t+Number(r.amount||0),0),0))}. Filtered by Entry Date. ${type==='Overtime'?'OT rows keep all dates together; each page is capped at ₹9,999.':'Page A: latest Sunday only. Page B: all earlier Sunday dates combined employee-wise; each page is capped at ₹9,999.'}`;
  document.body.classList.add('printing-list')
 }
 document.getElementById('makePrintList').onclick=preparePrintList;
@@ -540,7 +552,7 @@ document.getElementById('printPreparedList').onclick=()=>{if(!ensurePreparedPrin
 document.getElementById('downloadPreparedList').onclick=()=>{if(!ensurePreparedPrintList())return;const css=[...document.querySelectorAll('style')].map(x=>x.textContent).join('\n');const html='<!doctype html><html><head><meta charset="utf-8"><title>Allowance A4 List</title><style>'+css+'</style></head><body>'+document.getElementById('printArea').innerHTML+'</body></html>';download('allowance-a4-list-'+today()+'.html',html,'text/html;charset=utf-8')};
 window.addEventListener('afterprint',()=>document.body.classList.remove('printing-list'));
 function renderAll(){if(!editEntryId&&document.activeElement!==document.getElementById('otRate'))document.getElementById('otRate').value=currentOtRate;refreshDatalist();document.getElementById('mEmployees').textContent=db.employees.length;document.getElementById('mActive').textContent=db.employees.filter(e=>e.status==='Active').length;document.getElementById('mPending').textContent=money(db.entries.filter(e=>e.paid==='Pending').reduce((s,e)=>s+e.amount,0));renderEmployees();renderEntryTable('recentTable',db.entries.slice(-8),false);applySectionFilter('Sunday');applySectionFilter('Overtime');if(document.getElementById('reports').classList.contains('active'))runReport();if(document.getElementById('history').classList.contains('active'))renderEmployeeHistory()}
-document.getElementById('sunFilter').value=monthNow();document.getElementById('otFilter').value=monthNow();document.getElementById('sunMonth').value=monthNow();document.getElementById('otMonth').value=monthNow();document.getElementById('repFrom').value=monthNow()+'-01';document.getElementById('repTo').value=today();document.getElementById('printFrom').value=monthNow()+'-01';document.getElementById('printTo').value=today();
+document.getElementById('sunEntryDate').value=today();document.getElementById('otEntryDate').value=today();document.getElementById('sunFilter').value=monthNow();document.getElementById('otFilter').value=monthNow();document.getElementById('sunMonth').value=monthNow();document.getElementById('otMonth').value=monthNow();document.getElementById('repFrom').value=monthNow()+'-01';document.getElementById('repTo').value=today();document.getElementById('printFrom').value=monthNow()+'-01';document.getElementById('printTo').value=today();
 dateListHTML('sun');dateListHTML('ot');updateSunCalc();updateOtCalc();renderAll();
 </script>
 </body>
